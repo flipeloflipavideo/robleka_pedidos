@@ -170,8 +170,8 @@ def index():
         'data': [row[1] for row in estados_result]
     }
 
-    # CORRECCIÓN: Usar la expresión completa en group_by y order_by
-    ingresos_mensuales_expr = db.func.strftime('%Y-%m', Pedido.fecha_creacion)
+    # CORRECCIÓN: Usar TO_CHAR para PostgreSQL
+    ingresos_mensuales_expr = db.func.to_char(Pedido.fecha_creacion, 'YYYY-MM')
     ingresos_mensuales_result = db.session.query(
         ingresos_mensuales_expr,
         db.func.sum(Pedido.precio)
@@ -181,8 +181,9 @@ def index():
         'data': [row[1] for row in ingresos_mensuales_result]
     }
 
+    # CORRECCIÓN: Usar TO_CHAR para PostgreSQL
     fechas_unicas_result = db.session.query(
-        db.func.strftime('%Y-%m-%d', Pedido.fecha_creacion)
+        db.func.to_char(Pedido.fecha_creacion, 'YYYY-MM-DD')
     ).distinct().order_by(1).all()
     fechas_unicas = [row[0] for row in fechas_unicas_result]
 
