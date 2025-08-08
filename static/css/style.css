@@ -37,7 +37,7 @@
     height: 100%;
     top: 0;
     left: 0;
-    background-color: rgba(248, 249, 250, 0.2); /* Superposición clara por defecto */
+    background-color: rgba(240, 242, 245, 0.4); /* Un gris muy claro, un poco más presente */
     z-index: -1; /* Entre el fondo y el contenido */
     transition: background-color 0.5s ease;
 }
@@ -90,9 +90,9 @@ body {
 
 /* --- Barra de Navegación y Título --- */
 .navbar {
-    background-color: rgba(255, 255, 255, 0.8) !important; /* Fondo semitransparente */
+    background-color: rgba(255, 255, 255, 0.9) !important; /* Un poco menos transparente */
     backdrop-filter: blur(10px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08); /* Sombra ligeramente más pronunciada */
     padding: 1rem 0;
 }
 
@@ -114,10 +114,10 @@ body {
 
 /* --- Tabla de Pedidos --- */
 .table-responsive {
-    box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.1); /* Sombra más pronunciada */
     border-radius: 12px;
     padding: 1.5rem;
-    background-color: rgba(255, 255, 255, 0.8); /* Fondo semitransparente */
+    background-color: rgba(255, 255, 255, 0.95); /* Casi opaco, pero no blanco puro */
     backdrop-filter: blur(10px);
 }
 
@@ -177,27 +177,27 @@ body {
 
 /* Colores de las filas según el estado */
 table tbody tr.fila-pendiente {
-    background-color: rgba(255, 193, 7, 0.5);
+    background-color: rgba(255, 210, 7, 0.6);
 }
 
 table tbody tr.fila-en-progreso {
-    background-color: rgba(23, 162, 184, 0.5);
+    background-color: rgba(23, 180, 200, 0.6);
 }
 
 table tbody tr.fila-completado {
-    background-color: rgba(40, 167, 69, 0.5);
+    background-color: rgba(60, 180, 80, 0.6);
 }
 
 table.table-hover tbody tr.fila-pendiente:hover {
-    background-color: rgba(255, 193, 7, 0.7);
+    background-color: rgba(255, 210, 7, 0.8);
 }
 
 table.table-hover tbody tr.fila-en-progreso:hover {
-    background-color: rgba(23, 162, 184, 0.7);
+    background-color: rgba(23, 180, 200, 0.8);
 }
 
 table.table-hover tbody tr.fila-completado:hover {
-    background-color: rgba(40, 167, 69, 0.7);
+    background-color: rgba(60, 180, 80, 0.8);
 }
 
 
@@ -253,8 +253,8 @@ table.table-hover tbody tr.fila-completado:hover {
 
 
 /* --- Calendario --- */
-#calendario-container {
-    background-color: rgba(255, 255, 255, 0.8); /* Fondo semitransparente */
+#calendario-container, #charts-container, .chart-card {
+    background-color: rgba(255, 255, 255, 0.95); /* Casi opaco, pero no blanco puro */
     backdrop-filter: blur(10px);
     padding: 20px;
     border-radius: 12px;
