@@ -132,8 +132,8 @@ def index():
 
     if search_term:
         query = query.filter(
-            (Pedido.nombre_cliente.ilike(f'%{search_term}%')) |\
-            (Pedido.producto.ilike(f'%{search_term}%')) |\
+            (Pedido.nombre_cliente.ilike(f'%{search_term}%')) |
+            (Pedido.producto.ilike(f'%{search_term}%')) |
             (Pedido.estado_pedido.ilike(f'%{search_term}%'))
         )
 
