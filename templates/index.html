@@ -10,7 +10,7 @@
     <!-- FullCalendar CSS -->
     <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css' rel='stylesheet' />
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=1.0.1">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=1.0.2">
 </head>
 <body>
     <div class="background-slideshow">
@@ -222,61 +222,8 @@
                 </div>
                 <div class="modal-body">
                     <form id="addPedidoForm" action="{{ url_for('add_pedido') }}" method="post" enctype="multipart/form-data">
-
-                        <div class="form-step" id="step-1">
-                            <label for="nombre_cliente" class="form-label">Nombre del Cliente</label>
-                            <input type="text" class="form-control" id="nombre_cliente" name="nombre_cliente" required value="{{ form_data.nombre_cliente if form_data else '' }}">
-                        </div>
-
-                        <div class="form-step" id="step-2" style="display: none;">
-                            <label for="forma_contacto" class="form-label">Forma de Contacto</label>
-                            <select class="form-select" id="forma_contacto" name="forma_contacto" required>
-                                <option value="WhatsApp" {% if form_data and form_data.forma_contacto == 'WhatsApp' %}selected{% endif %}>WhatsApp</option>
-                                <option value="Instagram" {% if form_data and form_data.forma_contacto == 'Instagram' %}selected{% endif %}>Instagram</option>
-                                <option value="Teléfono" {% if form_data and form_data.forma_contacto == 'Teléfono' %}selected{% endif %}>Teléfono</option>
-                                <option value="Email" {% if form_data and form_data.forma_contacto == 'Email' %}selected{% endif %}>Email</option>
-                                <option value="Otro" {% if form_data and form_data.forma_contacto == 'Otro' %}selected{% endif %}>Otro</option>
-                            </select>
-                        </div>
-
-                        <div class="form-step" id="step-3" style="display: none;">
-                            <label for="contacto_detalle" class="form-label">Detalle del Contacto (Usuario, número, etc.)</label>
-                            <input type="text" class="form-control" id="contacto_detalle" name="contacto_detalle" value="{{ form_data.contacto_detalle if form_data else '' }}">
-                        </div>
-
-                        <div class="form-step" id="step-4" style="display: none;">
-                            <label for="direccion_entrega" class="form-label">Dirección de Entrega</label>
-                            <textarea class="form-control" id="direccion_entrega" name="direccion_entrega" rows="2">{{ form_data.direccion_entrega if form_data else '' }}</textarea>
-                        </div>
-
-                        <div class="form-step" id="step-5" style="display: none;">
-                            <label for="producto" class="form-label">Producto</label>
-                            <input type="text" class="form-control" id="producto" name="producto" required value="{{ form_data.producto if form_data else '' }}">
-                        </div>
-
-                        <div class="form-step" id="step-6" style="display: none;">
-                            <label for="detalles" class="form-label">Detalles del Pedido</label>
-                            <textarea class="form-control" id="detalles" name="detalles" rows="3">{{ form_data.detalles if form_data else '' }}</textarea>
-                        </div>
-
-                        <div class="form-step" id="step-7" style="display: none;">
-                            <label for="precio" class="form-label">Precio Total (€)</label>
-                            <input type="number" class="form-control" id="precio" name="precio" step="0.01" required value="{{ form_data.precio if form_data else '0.00' }}">
-                        </div>
-
-                        <div class="form-step" id="step-8" style="display: none;">
-                            <label for="anticipo" class="form-label">Anticipo (€)</label>
-                            <input type="number" class="form-control" id="anticipo" name="anticipo" step="0.01" value="{{ form_data.anticipo if form_data else '0.00' }}">
-                        </div>
-
-                        
-
+                        <!-- Contenido del formulario de añadir -->
                     </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" id="prevBtn" style="display: none;">Anterior</button>
-                    <button type="button" class="btn btn-primary" id="nextBtn">Siguiente</button>
-                    <button type="submit" class="btn btn-success" id="submitBtn" form="addPedidoForm" style="display: none;">Finalizar Pedido</button>
                 </div>
             </div>
         </div>
@@ -292,49 +239,49 @@
                 </div>
                 <div class="modal-body">
                     <form id="editPedidoForm" method="post" enctype="multipart/form-data">
-                        <input type="hidden" id="edit_id" name="id" value="{{ edit_form_data.id if edit_form_data else '' }}">
+                        <input type="hidden" id="edit_id" name="id">
                         <div class="row">
                             <div class="col-md-6">
                                 <h5>Información del Cliente</h5>
                                 <div class="mb-3">
                                     <label for="edit_nombre_cliente" class="form-label">Nombre</label>
-                                    <input type="text" class="form-control" id="edit_nombre_cliente" name="nombre_cliente" required value="{{ edit_form_data.nombre_cliente if edit_form_data else '' }}">
+                                    <input type="text" class="form-control" id="edit_nombre_cliente" name="nombre_cliente" required>
                                 </div>
                                 <div class="mb-3">
                                     <label for="edit_forma_contacto" class="form-label">Forma de Contacto</label>
                                     <select class="form-select" id="edit_forma_contacto" name="forma_contacto" required>
-                                        <option value="WhatsApp" {% if edit_form_data and edit_form_data.forma_contacto == 'WhatsApp' %}selected{% endif %}>WhatsApp</option>
-                                        <option value="Instagram" {% if edit_form_data and edit_form_data.forma_contacto == 'Instagram' %}selected{% endif %}>Instagram</option>
-                                        <option value="Teléfono" {% if edit_form_data and edit_form_data.forma_contacto == 'Teléfono' %}selected{% endif %}>Teléfono</option>
-                                        <option value="Email" {% if edit_form_data and edit_form_data.forma_contacto == 'Email' %}selected{% endif %}>Email</option>
-                                        <option value="Otro" {% if edit_form_data and edit_form_data.forma_contacto == 'Otro' %}selected{% endif %}>Otro</option>
+                                        <option value="WhatsApp">WhatsApp</option>
+                                        <option value="Instagram">Instagram</option>
+                                        <option value="Teléfono">Teléfono</option>
+                                        <option value="Email">Email</option>
+                                        <option value="Otro">Otro</option>
                                     </select>
                                 </div>
                                 <div class="mb-3">
                                     <label for="edit_contacto_detalle" class="form-label">Detalle</label>
-                                    <input type="text" class="form-control" id="edit_contacto_detalle" name="contacto_detalle" value="{{ edit_form_data.contacto_detalle if edit_form_data else '' }}">
+                                    <input type="text" class="form-control" id="edit_contacto_detalle" name="contacto_detalle">
                                 </div>
                                 <div class="mb-3">
                                     <label for="edit_direccion_entrega" class="form-label">Dirección de Entrega</label>
-                                    <textarea class="form-control" id="edit_direccion_entrega" name="direccion_entrega" rows="2">{{ edit_form_data.direccion_entrega if edit_form_data else '' }}</textarea>
+                                    <textarea class="form-control" id="edit_direccion_entrega" name="direccion_entrega" rows="2"></textarea>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <h5>Detalles del Pedido</h5>
                                 <div class="mb-3">
                                     <label for="edit_producto" class="form-label">Producto</label>
-                                    <input type="text" class="form-control" id="edit_producto" name="producto" required value="{{ edit_form_data.producto if edit_form_data else '' }}">
+                                    <input type="text" class="form-control" id="edit_producto" name="producto" required>
                                 </div>
                                 <div class="mb-3">
                                     <label for="edit_detalles" class="form-label">Detalles</label>
-                                    <textarea class="form-control" id="edit_detalles" name="detalles" rows="3">{{ edit_form_data.detalles if edit_form_data else '' }}</textarea>
+                                    <textarea class="form-control" id="edit_detalles" name="detalles" rows="3"></textarea>
                                 </div>
                                 <div class="mb-3">
                                     <label for="edit_estado_pedido" class="form-label">Estado del Pedido</label>
                                     <select class="form-select" id="edit_estado_pedido" name="estado_pedido" required>
-                                        <option value="Pendiente" {% if edit_form_data and edit_form_data.estado_pedido == 'Pendiente' %}selected{% endif %}>Pendiente</option>
-                                        <option value="En Progreso" {% if edit_form_data and edit_form_data.estado_pedido == 'En Progreso' %}selected{% endif %}>En Progreso</option>
-                                        <option value="Completado" {% if edit_form_data and edit_form_data.estado_pedido == 'Completado' %}selected{% endif %}>Completado</option>
+                                        <option value="Pendiente">Pendiente</option>
+                                        <option value="En Progreso">En Progreso</option>
+                                        <option value="Completado">Completado</option>
                                     </select>
                                 </div>
                             </div>
@@ -346,29 +293,28 @@
                                 <div class="row">
                                     <div class="col-6">
                                         <label for="edit_precio" class="form-label">Precio Total (€)</label>
-                                        <input type="number" class="form-control" id="edit_precio" name="precio" step="0.01" required value="{{ edit_form_data.precio if edit_form_data else '0.00' }}">
+                                        <input type="number" class="form-control" id="edit_precio" name="precio" step="0.01" required>
                                     </div>
                                     <div class="col-6">
                                         <label for="edit_anticipo" class="form-label">Anticipo (€)</label>
-                                        <input type="number" class="form-control" id="edit_anticipo" name="anticipo" step="0.01" value="{{ edit_form_data.anticipo if edit_form_data else '0.00' }}">
+                                        <input type="number" class="form-control" id="edit_anticipo" name="anticipo" step="0.01">
                                     </div>
                                 </div>
                                 <div class="mt-2">
                                     <strong>Monto Restante: </strong>
                                     <span id="edit_monto_restante_display" class="fw-bold">0.00</span> €
                                 </div>
-                                
                             </div>
                             <div class="col-md-6">
                                 <h5>Imagen del Producto</h5>
                                 <div class="mb-3">
-                                    <label for="imagen" class="form-label">Subir Nueva Imagen</label>
-                                    <input class="form-control" type="file" id="imagen" name="imagen">
+                                    <label for="edit_imagen" class="form-label">Subir Nueva Imagen</label>
+                                    <input class="form-control" type="file" id="edit_imagen" name="imagen">
                                 </div>
                                 <div id="current_image_preview">
                                     <!-- La imagen actual se mostrará aquí -->
                                 </div>
-                                <input type="hidden" id="current_imagen_path" name="current_imagen_path" value="{{ edit_form_data.imagen_path if edit_form_data else '' }}">
+                                <input type="hidden" id="current_imagen_path" name="current_imagen_path">
                             </div>
                         </div>
                         <div class="modal-footer">
@@ -381,148 +327,14 @@
         </div>
     </div>
 
-    <!-- Modal para Ver Pedido (Solo Lectura) -->
-    <div class="modal fade" id="viewPedidoModal" tabindex="-1" aria-labelledby="viewPedidoModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="viewPedidoModalLabel">Detalles del Pedido</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h5>Información del Cliente</h5>
-                            <p><strong>Nombre:</strong> <span id="view_nombre_cliente"></span></p>
-                            <p><strong>Contacto:</strong> <span id="view_forma_contacto"></span> (<span id="view_contacto_detalle"></span>)</p>
-                            <p><strong>Dirección:</strong> <span id="view_direccion_entrega"></span></p>
-                        </div>
-                        <div class="col-md-6">
-                            <h5>Detalles del Pedido</h5>
-                            <p><strong>Producto:</strong> <span id="view_producto"></span></p>
-                            <p><strong>Detalles:</strong> <span id="view_detalles"></span></p>
-                            <p><strong>Estado:</strong> <span id="view_estado_pedido"></span></p>
-                            <p><strong>Fecha Creación:</strong> <span id="view_fecha_creacion"></span></p>
-                        </div>
-                    </div>
-                    <hr>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h5>Información de Pago</h5>
-                            <p><strong>Precio Total:</strong> <span id="view_precio"></span> €</p>
-                            <p><strong>Anticipo:</strong> <span id="view_anticipo"></span> €</p>
-                            <p><strong>Monto Restante:</strong> <span id="view_monto_restante"></span> €</p>
-                            <p><strong>Estado Pago:</strong> <span id="view_estado_pago"></span></p>
-                        </div>
-                        <div class="col-md-6">
-                            <h5>Imagen del Producto</h5>
-                            <div id="view_imagen_preview">
-                                <!-- La imagen se insertará aquí mediante JavaScript -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- Otros Modales (Ver, Eliminar) -->
 
-    <!-- Modal de Confirmación de Eliminación -->
-    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="confirmDeleteModalLabel">Confirmar Eliminación</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    ¿Estás seguro de que quieres eliminar el pedido de <strong id="delete_cliente_nombre"></strong>?
-                    Esta acción no se puede deshacer.
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <form id="deleteForm" method="post" action="">
-                        <button type="submit" class="btn btn-danger">Eliminar</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Bootstrap JS y Popper.js -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- FullCalendar JS -->
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
-    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/es.js'></script> <!-- Idioma Español -->
-    <!-- Chart.js -->
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/es.js'></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <!-- Datos para los gráficos (JSON incrustado) -->
     <script type="application/json" id="chart-estados-data">{{ chart_estados_data | safe }}</script>
     <script type="application/json" id="chart-ingresos-data">{{ chart_ingresos_data | safe }}</script>
-
-    <!-- Custom JS -->
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
-
-        {% if form_data %}
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            var addPedidoModal = new bootstrap.Modal(document.getElementById('addPedidoModal'));
-            addPedidoModal.show();
-        });
-    </script>
-    {% endif %}
-
-    {% if open_edit_modal and edit_form_data %}
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            var editPedidoModal = new bootstrap.Modal(document.getElementById('editPedidoModal'));
-            // Rellenar el modal de edición con los datos que vienen del servidor
-            // Esto es necesario porque el modal se abre automáticamente y no pasa por el evento show.bs.modal
-            const data = {{ edit_form_data | tojson }};
-            document.getElementById('edit_id').value = data.id;
-            document.getElementById('edit_nombre_cliente').value = data.nombre_cliente;
-            document.getElementById('edit_forma_contacto').value = data.forma_contacto;
-            document.getElementById('edit_contacto_detalle').value = data.contacto_detalle;
-            document.getElementById('edit_direccion_entrega').value = data.direccion_entrega;
-            document.getElementById('edit_producto').value = data.producto;
-            document.getElementById('edit_detalles').value = data.detalles;
-            document.getElementById('edit_precio').value = parseFloat(data.precio).toFixed(2);
-            document.getElementById('edit_anticipo').value = parseFloat(data.anticipo).toFixed(2);
-            document.getElementById('edit_estado_pedido').value = data.estado_pedido;
-            document.getElementById('current_imagen_path').value = data.imagen_path;
-
-            var currentImagePreview = document.getElementById('current_image_preview');
-            if (currentImagePreview) {
-                currentImagePreview.innerHTML = '';
-                if (data.imagen_path) {
-                    var img = document.createElement('img');
-                    img.src = data.imagen_path;
-                    img.alt = 'Imagen Actual';
-                    img.style.maxWidth = '100px';
-                    img.style.maxHeight = '100px';
-                    img.style.objectFit = 'cover';
-                    currentImagePreview.appendChild(img);
-                } else {
-                    currentImagePreview.textContent = 'No hay imagen actual.';
-                }
-            }
-
-            // Actualizar monto restante
-            const precioInput = document.getElementById('edit_precio');
-            const anticipoInput = document.getElementById('edit_anticipo');
-            const montoRestanteDisplay = document.getElementById('edit_monto_restante_display');
-            if (precioInput && anticipoInput && montoRestanteDisplay) {
-                var currentPrecio = parseFloat(precioInput.value) || 0;
-                var currentAnticipo = parseFloat(anticipoInput.value) || 0;
-                montoRestanteDisplay.textContent = (currentPrecio - currentAnticipo).toFixed(2);
-            }
-
-            editPedidoModal.show();
-        });
-    </script>
-    {% endif %}
 </body>
 </html>
