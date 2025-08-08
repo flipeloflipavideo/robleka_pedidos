@@ -222,7 +222,73 @@
                 </div>
                 <div class="modal-body">
                     <form id="addPedidoForm" action="{{ url_for('add_pedido') }}" method="post" enctype="multipart/form-data">
-                        <!-- Contenido del formulario de añadir -->
+                        <div class="form-step" id="step-1">
+                            <h5>Información del Cliente</h5>
+                            <div class="mb-3">
+                                <label for="nombre_cliente" class="form-label">Nombre del Cliente</label>
+                                <input type="text" class="form-control" id="nombre_cliente" name="nombre_cliente" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="forma_contacto" class="form-label">Forma de Contacto</label>
+                                <select class="form-select" id="forma_contacto" name="forma_contacto" required>
+                                    <option value="">Seleccione...</option>
+                                    <option value="WhatsApp">WhatsApp</option>
+                                    <option value="Instagram">Instagram</option>
+                                    <option value="Teléfono">Teléfono</option>
+                                    <option value="Email">Email</option>
+                                    <option value="Otro">Otro</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="contacto_detalle" class="form-label">Detalle de Contacto (Ej: número, usuario)</label>
+                                <input type="text" class="form-control" id="contacto_detalle" name="contacto_detalle">
+                            </div>
+                            <div class="mb-3">
+                                <label for="direccion_entrega" class="form-label">Dirección de Entrega</label>
+                                <textarea class="form-control" id="direccion_entrega" name="direccion_entrega" rows="2"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="form-step" id="step-2" style="display: none;">
+                            <h5>Detalles del Pedido</h5>
+                            <div class="mb-3">
+                                <label for="producto" class="form-label">Producto</label>
+                                <input type="text" class="form-control" id="producto" name="producto" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="detalles" class="form-label">Detalles del Pedido</label>
+                                <textarea class="form-control" id="detalles" name="detalles" rows="3"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="form-step" id="step-3" style="display: none;">
+                            <h5>Información de Pago e Imagen</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="precio" class="form-label">Precio Total (€)</label>
+                                        <input type="number" class="form-control" id="precio" name="precio" step="0.01" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="anticipo" class="form-label">Anticipo (€)</label>
+                                        <input type="number" class="form-control" id="anticipo" name="anticipo" step="0.01" value="0.00">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="imagen" class="form-label">Imagen del Producto</label>
+                                <input class="form-control" type="file" id="imagen" name="imagen">
+                            </div>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-primary" id="prevBtn" style="display: none;">Anterior</button>
+                            <button type="button" class="btn btn-primary" id="nextBtn">Siguiente</button>
+                            <button type="submit" class="btn btn-success" id="submitBtn" style="display: none;">Añadir Pedido</button>
+                        </div>
                     </form>
                 </div>
             </div>
