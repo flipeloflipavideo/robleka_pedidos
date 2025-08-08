@@ -71,8 +71,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- Lógica para el modal de Editar Pedido ---
     const editPedidoModal = document.getElementById('editPedidoModal');
     if (editPedidoModal) {
-        const editForm = editPedidoModal.querySelector('#editPedidoForm');
-
         editPedidoModal.addEventListener('show.bs.modal', function (event) {
             var button = event.relatedTarget;
             var id = button.getAttribute('data-id');
@@ -87,7 +85,8 @@ document.addEventListener('DOMContentLoaded', function() {
             var estado_pedido = button.getAttribute('data-estado_pedido');
             var imagen_path = button.getAttribute('data-imagen_path');
 
-            if(editForm) editForm.action = '/update_pedido/' + id;
+            var modalForm = editPedidoModal.querySelector('#editPedidoForm');
+            if(modalForm) modalForm.action = '/update_pedido/' + id;
 
             function setInputValue(id, value) {
                 const element = editPedidoModal.querySelector(id);
@@ -139,20 +138,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if(precioInput) precioInput.addEventListener('input', updateMontoRestante);
             if(anticipoInput) anticipoInput.addEventListener('input', updateMontoRestante);
         });
-
-        if (editForm) {
-            editForm.addEventListener('submit', function(e) {
-                alert('¡PRUEBA DEFINITIVA! El formulario se está enviando.');
-            });
-        }
     }
 
     // --- Lógica para el modal de Ver Pedido (Solo Lectura) ---
     const viewPedidoModal = document.getElementById('viewPedidoModal');
     if (viewPedidoModal) {
         viewPedidoModal.addEventListener('show.bs.modal', function (event) {
-            const button = event.relatedTarget; // Botón que activó el modal
-            
+            const button = event.relatedTarget;
             const data = {};
             for (let i = 0; i < button.attributes.length; i++) {
                 const attr = button.attributes[i];
