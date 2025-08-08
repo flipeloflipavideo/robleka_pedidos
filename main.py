@@ -312,7 +312,7 @@ def update_pedido(id):
                 
                 # Subir nueva imagen a Cloudinary
                 upload_result = cloudinary.uploader.upload(file)
-                    imagen_path = upload_result['secure_url']
+                imagen_path = upload_result['secure_url']
                 flash('Imagen actualizada en Cloudinary.', 'success')
             except Exception as e:
                 print(f"ERROR CLOUDINARY: {e}")
