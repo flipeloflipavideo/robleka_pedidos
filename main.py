@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, flash, make_response
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
-import sqlite3
+from flask_sqlalchemy import SQLAlchemy
 import os
 from werkzeug.utils import secure_filename
 from collections import Counter
@@ -25,8 +25,32 @@ cloudinary.config(
 )
 
 app.secret_key = os.environ.get('SECRET_KEY', 'a_very_secret_dev_key')
-DATABASE = 'pedidos.db'
+
+# --- Configuración de SQLAlchemy para PostgreSQL ---
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
+
 PEDIDOS_POR_PAGINA = 10
+
+# --- Definición del Modelo de Pedido con SQLAlchemy ---
+class Pedido(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nombre_cliente = db.Column(db.String(100), nullable=False)
+    forma_contacto = db.Column(db.String(50), nullable=False)
+    contacto_detalle = db.Column(db.String(100))
+    direccion_entrega = db.Column(db.String(200))
+    producto = db.Column(db.String(100), nullable=False)
+    detalles = db.Column(db.Text)
+    precio = db.Column(db.Float, nullable=False)
+    anticipo = db.Column(db.Float, default=0.0)
+    imagen_path = db.Column(db.String(255))
+    estado_pago = db.Column(db.String(50), nullable=False)
+    estado_pedido = db.Column(db.String(50), nullable=False)
+    fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<Pedido {self.id} - {self.nombre_cliente}>'
 
 # --- Configuración de Flask-Login ---
 login_manager = LoginManager()
@@ -51,32 +75,7 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}
 
-def get_db_connection():
-    conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-def init_db():
-    conn = get_db_connection()
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS pedidos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre_cliente TEXT NOT NULL,
-            forma_contacto TEXT NOT NULL,
-            contacto_detalle TEXT,
-            direccion_entrega TEXT,
-            producto TEXT NOT NULL,
-            detalles TEXT,
-            precio REAL NOT NULL,
-            anticipo REAL DEFAULT 0.0,
-            imagen_path TEXT,
-            estado_pago TEXT NOT NULL,
-            estado_pedido TEXT NOT NULL,
-            fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    conn.commit()
-    conn.close()
+# No necesitamos get_db_connection() ni init_db() con SQLAlchemy
 
 # --- Rutas de la aplicación ---
 @app.route('/login', methods=['GET', 'POST'])
@@ -106,15 +105,17 @@ def logout():
 @app.route('/export/csv')
 @login_required
 def export_csv():
-    conn = get_db_connection()
-    pedidos = conn.execute('SELECT * FROM pedidos ORDER BY fecha_creacion DESC').fetchall()
-    conn.close()
+    pedidos = Pedido.query.order_by(Pedido.fecha_creacion.desc()).all()
     output = io.StringIO()
     writer = csv.writer(output)
-    header = pedidos[0].keys() if pedidos else []
+    
+    # Obtener los nombres de las columnas del modelo Pedido
+    header = [column.name for column in Pedido.__table__.columns]
     writer.writerow(header)
+    
     for pedido in pedidos:
-        writer.writerow([pedido[key] for key in header])
+        writer.writerow([getattr(pedido, col) for col in header])
+    
     output.seek(0)
     response = make_response(output.getvalue())
     response.headers["Content-Disposition"] = "attachment; filename=pedidos.csv"
@@ -126,32 +127,59 @@ def export_csv():
 def index():
     page = request.args.get('page', 1, type=int)
     search_term = request.args.get('search', '')
-    conn = get_db_connection()
-    query_params = []
-    base_query = 'FROM pedidos'
-    search_query = ''
+    
+    query = Pedido.query
+
     if search_term:
-        search_query = ' WHERE nombre_cliente LIKE ? OR producto LIKE ? OR estado_pedido LIKE ?'
-        query_params.extend([f'%{search_term}%', f'%{search_term}%', f'%{search_term}%'])
-    count_query = f'SELECT COUNT(*) {base_query} {search_query}'
-    total_pedidos_result = conn.execute(count_query, query_params).fetchone()
-    total_pedidos = total_pedidos_result[0] if total_pedidos_result else 0
+        query = query.filter(
+            (Pedido.nombre_cliente.ilike(f'%{search_term}%')) |\
+            (Pedido.producto.ilike(f'%{search_term}%')) |\
+            (Pedido.estado_pedido.ilike(f'%{search_term}%'))
+        )
+
+    total_pedidos = query.count()
     total_paginas = math.ceil(total_pedidos / PEDIDOS_POR_PAGINA)
-    offset = (page - 1) * PEDIDOS_POR_PAGINA
-    pedidos_query = f'SELECT * {base_query} {search_query} ORDER BY fecha_creacion DESC LIMIT ? OFFSET ?'
-    query_params.extend([PEDIDOS_POR_PAGINA, offset])
-    pedidos = conn.execute(pedidos_query, query_params).fetchall()
-    total_facturado_result = conn.execute("SELECT SUM(CASE WHEN estado_pago = 'Pagado Completo' THEN precio ELSE 0 END) + SUM(CASE WHEN estado_pago = 'Anticipo Pagado' THEN anticipo ELSE 0 END) AS total FROM pedidos").fetchone()
-    total_facturado = total_facturado_result['total'] or 0
-    monto_pendiente_result = conn.execute("SELECT SUM(precio - anticipo) AS pendiente FROM pedidos WHERE estado_pago != 'Pagado Completo'").fetchone()
-    monto_pendiente = monto_pendiente_result['pendiente'] or 0.0
-    estados_result = conn.execute("SELECT estado_pedido, COUNT(*) FROM pedidos GROUP BY estado_pedido").fetchall()
-    chart_estados_data = {'labels': [row['estado_pedido'] for row in estados_result], 'data': [row['COUNT(*)'] for row in estados_result]}
-    ingresos_mensuales_result = conn.execute("SELECT strftime('%Y-%m', fecha_creacion) AS mes_ano, SUM(precio) AS total_ingreso FROM pedidos WHERE estado_pago = 'Pagado Completo' GROUP BY mes_ano ORDER BY mes_ano").fetchall()
-    chart_ingresos_data = {'labels': [row['mes_ano'] for row in ingresos_mensuales_result], 'data': [row['total_ingreso'] for row in ingresos_mensuales_result]}
-    fechas_unicas_result = conn.execute("SELECT DISTINCT strftime('%Y-%m-%d', fecha_creacion) AS fecha FROM pedidos ORDER BY fecha").fetchall()
-    fechas_unicas = [row['fecha'] for row in fechas_unicas_result]
-    conn.close()
+    
+    pedidos = query.order_by(Pedido.fecha_creacion.desc())
+    pedidos = pedidos.paginate(page=page, per_page=PEDIDOS_POR_PAGINA, error_out=False).items
+    
+    total_facturado_result = db.session.query(
+        db.func.sum(db.case(
+            (Pedido.estado_pago == 'Pagado Completo', Pedido.precio),
+            else_=0
+        )) + 
+        db.func.sum(db.case(
+            (Pedido.estado_pago == 'Anticipo Pagado', Pedido.anticipo),
+            else_=0
+        ))
+    ).scalar()
+    total_facturado = total_facturado_result or 0
+
+    monto_pendiente_result = db.session.query(
+        db.func.sum(Pedido.precio - Pedido.anticipo)
+    ).filter(Pedido.estado_pago != 'Pagado Completo').scalar()
+    monto_pendiente = monto_pendiente_result or 0.0
+
+    estados_result = db.session.query(Pedido.estado_pedido, db.func.count(Pedido.id)).group_by(Pedido.estado_pedido).all()
+    chart_estados_data = {
+        'labels': [row[0] for row in estados_result],
+        'data': [row[1] for row in estados_result]
+    }
+
+    ingresos_mensuales_result = db.session.query(
+        db.func.strftime('%Y-%m', Pedido.fecha_creacion),
+        db.func.sum(Pedido.precio)
+    ).filter(Pedido.estado_pago == 'Pagado Completo').group_by(1).order_by(1).all()
+    chart_ingresos_data = {
+        'labels': [row[0] for row in ingresos_mensuales_result],
+        'data': [row[1] for row in ingresos_mensuales_result]
+    }
+
+    fechas_unicas_result = db.session.query(
+        db.func.strftime('%Y-%m-%d', Pedido.fecha_creacion)
+    ).distinct().order_by(1).all()
+    fechas_unicas = [row[0] for row in fechas_unicas_result]
+
     return render_template('index.html', 
                            pedidos=pedidos, 
                            fechas_pedidos_json=json.dumps(fechas_unicas),
@@ -166,13 +194,72 @@ def index():
 @app.route('/add_pedido', methods=['POST'])
 @login_required
 def add_pedido():
-    # ... (código de añadir)
-    pass
+    if request.method == 'POST':
+        nombre_cliente = request.form['nombre_cliente']
+        forma_contacto = request.form['forma_contacto']
+        contacto_detalle = request.form['contacto_detalle']
+        direccion_entrega = request.form['direccion_entrega']
+        producto = request.form['producto']
+        detalles = request.form['detalles']
+        precio = float(request.form['precio'])
+        anticipo = float(request.form.get('anticipo', '0.0'))
+        
+        errors = []
+        if not nombre_cliente: errors.append('El nombre del cliente es obligatorio.')
+        if not forma_contacto: errors.append('La forma de contacto es obligatoria.')
+        if not producto: errors.append('El producto es obligatorio.')
+
+        if precio <= 0: errors.append('El precio debe ser un número positivo.')
+        if anticipo < 0: errors.append('El anticipo no puede ser negativo.')
+        if anticipo > precio: errors.append('El anticipo no puede ser mayor que el precio total.')
+
+        if errors:
+            for error in errors: flash(error, 'danger')
+            return redirect(url_for('index'))
+
+        if anticipo == precio:
+            estado_pago = 'Pagado Completo'
+        elif anticipo > 0:
+            estado_pago = 'Anticipo Pagado'
+        else:
+            estado_pago = 'Pendiente'
+        
+        estado_pedido = 'Pendiente'
+        imagen_path = None
+
+        if 'imagen' in request.files:
+            file = request.files['imagen']
+            if file.filename != '' and allowed_file(file.filename):
+                try:
+                    upload_result = cloudinary.uploader.upload(file)
+                    imagen_path = upload_result['secure_url']
+                except Exception as e:
+                    flash(f'Error al subir la imagen a Cloudinary: {e}', 'danger')
+                    imagen_path = None
+
+        nuevo_pedido = Pedido(
+            nombre_cliente=nombre_cliente,
+            forma_contacto=forma_contacto,
+            contacto_detalle=contacto_detalle,
+            direccion_entrega=direccion_entrega,
+            producto=producto,
+            detalles=detalles,
+            precio=precio,
+            anticipo=anticipo,
+            imagen_path=imagen_path,
+            estado_pago=estado_pago,
+            estado_pedido=estado_pedido
+        )
+        db.session.add(nuevo_pedido)
+        db.session.commit()
+        flash('¡Pedido añadido con éxito!', 'success')
+        return redirect(url_for('index'))
 
 @app.route('/update_pedido/<int:id>', methods=['POST'])
 @login_required
 def update_pedido(id):
-    conn = get_db_connection()
+    pedido = Pedido.query.get_or_404(id)
+
     nombre_cliente = request.form['nombre_cliente']
     forma_contacto = request.form['forma_contacto']
     contacto_detalle = request.form['contacto_detalle']
@@ -182,58 +269,87 @@ def update_pedido(id):
     precio = float(request.form['precio'])
     anticipo = float(request.form.get('anticipo', '0.0'))
     estado_pedido = request.form['estado_pedido']
-    if anticipo == precio: estado_pago = 'Pagado Completo'
-    elif anticipo > 0: estado_pago = 'Anticipo Pagado'
-    else: estado_pago = 'Pendiente'
 
-    pedido_actual = conn.execute('SELECT imagen_path FROM pedidos WHERE id = ?', (id,)).fetchone()
-    imagen_path = pedido_actual['imagen_path'] if pedido_actual else None
-    
+    errors = []
+    if not nombre_cliente: errors.append('El nombre del cliente es obligatorio.')
+    if not forma_contacto: errors.append('La forma de contacto es obligatoria.')
+    if not producto: errors.append('El producto es obligatorio.')
+    if precio <= 0: errors.append('El precio debe ser un número positivo.')
+    if anticipo < 0: errors.append('El anticipo no puede ser negativo.')
+    if anticipo > precio: errors.append('El anticipo no puede ser mayor que el precio total.')
+
+    if errors:
+        for error in errors: flash(error, 'danger')
+        return redirect(url_for('index'))
+
+    if estado_pedido == 'Completado':
+        anticipo = precio
+        estado_pago = 'Pagado Completo'
+    else:
+        if anticipo == precio:
+            estado_pago = 'Pagado Completo'
+        elif anticipo > 0:
+            estado_pago = 'Anticipo Pagado'
+        else:
+            estado_pago = 'Pendiente'
+
+    # Lógica de la imagen
+    imagen_path = pedido.imagen_path # Mantener la imagen existente por defecto
     if 'imagen' in request.files and request.files['imagen'].filename != '':
         file = request.files['imagen']
         if allowed_file(file.filename):
             try:
+                # Borrar imagen antigua de Cloudinary si existe
                 if imagen_path and imagen_path.startswith('http'):
                     public_id = imagen_path.split('/')[-1].rsplit('.', 1)[0]
                     cloudinary.uploader.destroy(public_id)
                 
+                # Subir nueva imagen a Cloudinary
                 upload_result = cloudinary.uploader.upload(file)
                 imagen_path = upload_result['secure_url']
                 flash('Imagen actualizada en Cloudinary.', 'success')
             except Exception as e:
                 print(f"ERROR CLOUDINARY: {e}")
                 flash(f'Error al subir a Cloudinary: {e}', 'danger')
-    
-    conn.execute('''UPDATE pedidos SET 
-                     nombre_cliente = ?, forma_contacto = ?, contacto_detalle = ?, direccion_entrega = ?, 
-                     producto = ?, detalles = ?, precio = ?, anticipo = ?, imagen_path = ?, 
-                     estado_pago = ?, estado_pedido = ? 
-                     WHERE id = ?''',
-                 (nombre_cliente, forma_contacto, contacto_detalle, direccion_entrega, producto, detalles, precio, anticipo, imagen_path, estado_pago, estado_pedido, id))
-    
-    conn.commit()
-    conn.close()
+        else:
+            flash('Formato de archivo no permitido.', 'warning')
+
+    # Actualizar el objeto pedido con los nuevos datos
+    pedido.nombre_cliente = nombre_cliente
+    pedido.forma_contacto = forma_contacto
+    pedido.contacto_detalle = contacto_detalle
+    pedido.direccion_entrega = direccion_entrega
+    pedido.producto = producto
+    pedido.detalles = detalles
+    pedido.precio = precio
+    pedido.anticipo = anticipo
+    pedido.imagen_path = imagen_path
+    pedido.estado_pago = estado_pago
+    pedido.estado_pedido = estado_pedido
+
+    db.session.commit()
     flash('¡Pedido actualizado correctamente!', 'success')
     return redirect(url_for('index'))
 
 @app.route('/delete_pedido/<int:id>', methods=['POST'])
 @login_required
 def delete_pedido(id):
-    conn = get_db_connection()
-    pedido = conn.execute('SELECT imagen_path FROM pedidos WHERE id = ?', (id,)).fetchone()
-    if pedido and pedido['imagen_path'] and pedido['imagen_path'].startswith('http'):
-        imagen_url = pedido['imagen_path']
+    pedido = Pedido.query.get_or_404(id)
+    
+    # Borrar imagen de Cloudinary si existe
+    if pedido.imagen_path and pedido.imagen_path.startswith('http'):
         try:
-            public_id = imagen_url.split('/')[-1].rsplit('.', 1)[0]
+            public_id = pedido.imagen_path.split('/')[-1].rsplit('.', 1)[0]
             cloudinary.uploader.destroy(public_id)
         except Exception as e:
             print(f"Error deleting image from Cloudinary: {e}")
-    conn.execute('DELETE FROM pedidos WHERE id = ?', (id,))
-    conn.commit()
-    conn.close()
+
+    db.session.delete(pedido)
+    db.session.commit()
     flash('Pedido eliminado.', 'danger')
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
-    init_db()
+    with app.app_context():
+        db.create_all() # Crea las tablas si no existen
     app.run(debug=True)
