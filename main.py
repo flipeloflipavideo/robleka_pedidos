@@ -428,40 +428,42 @@ def update_pedido(id):
 @app.route('/delete_pedido/<int:id>', methods=['POST'])
 @login_required
 def delete_pedido(id):
-    # Obtener la imagen_path actual del pedido antes de eliminarlo de la DB
-        conn = get_db_connection()
-        pedido = conn.execute('SELECT imagen_path FROM pedidos WHERE id = ?', (id,)).fetchone()
-        
-        if pedido and pedido['imagen_path'] and pedido['imagen_path'].startswith('http'):
-            imagen_url = pedido['imagen_path']
-            try:
-                # Extraer public_id de la URL de Cloudinary
-                parts = imagen_url.split('/upload/')
-                if len(parts) > 1:
-                    public_id_with_version_and_ext = parts[1]
-                    if public_id_with_version_and_ext.startswith('v'):
-                        first_slash_after_v = public_id_with_version_and_ext.find('/')
-                        if first_slash_after_v != -1:
-                            public_id_with_ext = public_id_with_version_and_ext[first_slash_after_v + 1:]
-                        else:
-                            public_id_with_ext = public_id_with_version_and_ext
+    conn = get_db_connection()
+    # Primero, obtener la información del pedido antes de hacer cualquier cosa
+    pedido = conn.execute('SELECT imagen_path FROM pedidos WHERE id = ?', (id,)).fetchone()
+    
+    # Si el pedido existe y tiene una imagen en Cloudinary, eliminarla
+    if pedido and pedido['imagen_path'] and pedido['imagen_path'].startswith('http'):
+        imagen_url = pedido['imagen_path']
+        try:
+            # Extraer public_id de la URL de Cloudinary
+            parts = imagen_url.split('/upload/')
+            if len(parts) > 1:
+                public_id_with_version_and_ext = parts[1]
+                if public_id_with_version_and_ext.startswith('v'):
+                    first_slash_after_v = public_id_with_version_and_ext.find('/')
+                    if first_slash_after_v != -1:
+                        public_id_with_ext = public_id_with_version_and_ext[first_slash_after_v + 1:]
                     else:
                         public_id_with_ext = public_id_with_version_and_ext
-
-                    last_dot_index = public_id_with_ext.rfind('.')
-                    if last_dot_index != -1:
-                        public_id = public_id_with_ext[:last_dot_index]
-                    else:
-                        public_id = public_id_with_ext
-                    
-                    cloudinary.uploader.destroy(public_id)
-                    print(f"Imagen {public_id} eliminada de Cloudinary.")
                 else:
-                    print(f"No se pudo analizar la URL de Cloudinary para public_id: {imagen_url}")
+                    public_id_with_ext = public_id_with_version_and_ext
 
-            except Exception as e:
-                print(f"Error al eliminar la imagen de Cloudinary: {e}") # Registrar error, pero no detener el proceso
+                last_dot_index = public_id_with_ext.rfind('.')
+                if last_dot_index != -1:
+                    public_id = public_id_with_ext[:last_dot_index]
+                else:
+                    public_id = public_id_with_ext
+                
+                cloudinary.uploader.destroy(public_id)
+                print(f"Imagen {public_id} eliminada de Cloudinary.")
+            else:
+                print(f"No se pudo analizar la URL de Cloudinary para public_id: {imagen_url}")
 
+        except Exception as e:
+            print(f"Error al eliminar la imagen de Cloudinary: {e}") # Registrar error, pero no detener el proceso
+
+    # Ahora, eliminar el pedido de la base de datos
     conn.execute('DELETE FROM pedidos WHERE id = ?', (id,))
     conn.commit()
     conn.close()
