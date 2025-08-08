@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 currentImagePreview.innerHTML = '';
                 if (imagen_path) {
                     var img = document.createElement('img');
-                    img.src = imagen_path.startsWith('http') ? imagen_path : '/static/' + imagen_path;
+                    img.src = imagen_path; // CORREGIDO: Usar la URL directamente
                     img.alt = 'Imagen Actual';
                     img.style.maxWidth = '100px';
                     img.style.maxHeight = '100px';
@@ -177,7 +177,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 viewImagePreview.innerHTML = '';
                 if (data.imagen_path) {
                     const img = document.createElement('img');
-                    img.src = data.imagen_path.startsWith('http') ? data.imagen_path : '/static/' + data.imagen_path;
+                    img.src = data.imagen_path; // CORREGIDO: Usar la URL directamente
                     img.alt = 'Imagen del Producto';
                     img.style.maxWidth = '100%';
                     img.style.height = 'auto';
