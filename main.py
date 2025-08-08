@@ -31,6 +31,10 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
+# --- CREACIÓN DE TABLAS: Asegurarse de que se ejecuta al inicio ---
+with app.app_context():
+    db.create_all()
+
 PEDIDOS_POR_PAGINA = 10
 
 # --- Definición del Modelo de Pedido con SQLAlchemy ---
@@ -166,10 +170,12 @@ def index():
         'data': [row[1] for row in estados_result]
     }
 
+    # CORRECCIÓN: Usar la expresión completa en group_by y order_by
+    ingresos_mensuales_expr = db.func.strftime('%Y-%m', Pedido.fecha_creacion)
     ingresos_mensuales_result = db.session.query(
-        db.func.strftime('%Y-%m', Pedido.fecha_creacion),
+        ingresos_mensuales_expr,
         db.func.sum(Pedido.precio)
-    ).filter(Pedido.estado_pago == 'Pagado Completo').group_by(1).order_by(1).all()
+    ).filter(Pedido.estado_pago == 'Pagado Completo').group_by(ingresos_mensuales_expr).order_by(ingresos_mensuales_expr).all()
     chart_ingresos_data = {
         'labels': [row[0] for row in ingresos_mensuales_result],
         'data': [row[1] for row in ingresos_mensuales_result]
@@ -306,7 +312,7 @@ def update_pedido(id):
                 
                 # Subir nueva imagen a Cloudinary
                 upload_result = cloudinary.uploader.upload(file)
-                imagen_path = upload_result['secure_url']
+                    imagen_path = upload_result['secure_url']
                 flash('Imagen actualizada en Cloudinary.', 'success')
             except Exception as e:
                 print(f"ERROR CLOUDINARY: {e}")
@@ -350,6 +356,4 @@ def delete_pedido(id):
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all() # Crea las tablas si no existen
     app.run(debug=True)
