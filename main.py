@@ -44,7 +44,7 @@ class User(UserMixin):
     def __init__(self, id):
         self.id = id
 
-    def get_id():
+    def get_id(self): # CORREGIDO: Añadido 'self'
         return str(self.id)
 
 @login_manager.user_loader
@@ -242,14 +242,13 @@ def add_pedido():
         try:
             anticipo = float(anticipo_str)
             if anticipo < 0: errors.append('El anticipo no puede ser negativo.')
-            if anticipo > precio: errors.append('El anticipo no puede ser mayor que el precio total.')
+            if 'precio' in locals() and anticipo > precio: errors.append('El anticipo no puede ser mayor que el precio total.')
         except ValueError: errors.append('El anticipo debe ser un número válido.')
 
         if errors:
             for error in errors: flash(error, 'danger')
-            # Para mantener los datos del formulario, los pasamos de vuelta a la plantilla
             return render_template('index.html', 
-                                   pedidos=[], # No cargamos pedidos para evitar sobrecarga
+                                   pedidos=[], 
                                    fechas_pedidos_json=json.dumps([]),
                                    total_facturado=0,
                                    monto_pendiente=0,
@@ -257,7 +256,6 @@ def add_pedido():
                                    chart_ingresos_data=json.dumps({}),
                                    page=1, total_paginas=1,
                                    search_term='',
-                                   # Datos del formulario para rellenar
                                    form_data=request.form)
 
         if anticipo == precio:
@@ -268,8 +266,7 @@ def add_pedido():
             estado_pago = 'Pendiente'
         
         estado_pedido = 'Pendiente'
-        # imagen_path = None # Eliminado, se manejará con Cloudinary
-
+        
         imagen_path = None
         if 'imagen' in request.files:
             file = request.files['imagen']
@@ -279,7 +276,7 @@ def add_pedido():
                     imagen_path = upload_result['secure_url']
                 except Exception as e:
                     flash(f'Error al subir la imagen a Cloudinary: {e}', 'danger')
-                    imagen_path = None # Asegurarse de que sea None si falla la subida
+                    imagen_path = None
 
         conn = get_db_connection()
         conn.execute('''INSERT INTO pedidos (nombre_cliente, forma_contacto, contacto_detalle, direccion_entrega, producto, detalles, precio, anticipo, imagen_path, estado_pago, estado_pedido) 
@@ -324,9 +321,6 @@ def update_pedido(id):
 
         if errors:
             for error in errors: flash(error, 'danger')
-            # Si hay errores, volvemos a mostrar el formulario de edición con los datos introducidos
-            # y los mensajes de error. Es una mejor experiencia de usuario que simplemente perder los datos.
-            # (Esta parte se puede mejorar para recargar el modal directamente, pero por ahora funciona)
             return redirect(url_for('index'))
 
         # --- 3. Lógica de negocio (estados de pago, etc.) ---
@@ -341,20 +335,20 @@ def update_pedido(id):
             else:
                 estado_pago = 'Pendiente'
 
-        # --- 4. Lógica de la imagen (la parte corregida y robusta) ---
+        # --- 4. Lógica de la imagen con DEBUGGING ---
         conn = get_db_connection()
         pedido_actual = conn.execute('SELECT imagen_path FROM pedidos WHERE id = ?', (id,)).fetchone()
         imagen_path = pedido_actual['imagen_path'] if pedido_actual else None
+        flash(f"DEBUG 1: Path de imagen inicial desde DB: {imagen_path}", 'info')
         
         nueva_imagen_subida = 'imagen' in request.files and request.files['imagen'].filename != ''
 
         if nueva_imagen_subida:
+            flash("DEBUG 2: Detectada nueva imagen para subir.", 'info')
             file = request.files['imagen']
             if allowed_file(file.filename):
-                # Si hay una imagen antigua en Cloudinary, la borramos
                 if imagen_path and imagen_path.startswith('http'):
                     try:
-                        # Extraer public_id de la URL de Cloudinary
                         parts = imagen_path.split('/upload/')
                         if len(parts) > 1:
                             public_id_with_version_and_ext = parts[1]
@@ -364,21 +358,23 @@ def update_pedido(id):
                                 public_id_with_ext = public_id_with_version_and_ext
                             public_id = public_id_with_ext.rsplit('.', 1)[0]
                             cloudinary.uploader.destroy(public_id)
-                            print(f"Old image {public_id} deleted from Cloudinary.")
+                            flash(f"DEBUG 3: Imagen antigua ({public_id}) borrada de Cloudinary.", 'warning')
                     except Exception as e:
-                        print(f"Error deleting old image from Cloudinary: {e}")
+                        flash(f"DEBUG 3: Error borrando imagen antigua: {e}", 'danger')
                 
-                # Subir la nueva imagen
                 try:
                     upload_result = cloudinary.uploader.upload(file)
-                    imagen_path = upload_result['secure_url'] # Actualizamos la ruta con la nueva URL
+                    imagen_path = upload_result['secure_url']
+                    flash(f"DEBUG 4: Nueva imagen subida. URL: {imagen_path}", 'success')
                 except Exception as e:
-                    flash(f'Error al subir la nueva imagen a Cloudinary: {e}', 'danger')
-                    # Si la subida falla, no hacemos nada y mantenemos la imagen_path antigua
+                    flash(f"DEBUG 4: ERROR al subir a Cloudinary: {e}", 'danger')
             else:
-                flash('El formato del archivo de imagen no es válido.', 'warning')
+                flash('DEBUG: Formato de archivo no permitido.', 'warning')
+        else:
+            flash("DEBUG 2: No se subió una nueva imagen.", 'info')
 
         # --- 5. Actualizar la base de datos ---
+        flash(f"DEBUG 5: Guardando en DB con imagen_path: {imagen_path}", 'info')
         conn.execute('''UPDATE pedidos SET 
                          nombre_cliente = ?, forma_contacto = ?, contacto_detalle = ?, direccion_entrega = ?, 
                          producto = ?, detalles = ?, precio = ?, anticipo = ?, imagen_path = ?, 
@@ -395,14 +391,11 @@ def update_pedido(id):
 @login_required
 def delete_pedido(id):
     conn = get_db_connection()
-    # Primero, obtener la información del pedido antes de hacer cualquier cosa
     pedido = conn.execute('SELECT imagen_path FROM pedidos WHERE id = ?', (id,)).fetchone()
     
-    # Si el pedido existe y tiene una imagen en Cloudinary, eliminarla
     if pedido and pedido['imagen_path'] and pedido['imagen_path'].startswith('http'):
         imagen_url = pedido['imagen_path']
         try:
-            # Extraer public_id de la URL de Cloudinary
             parts = imagen_url.split('/upload/')
             if len(parts) > 1:
                 public_id_with_version_and_ext = parts[1]
@@ -427,9 +420,8 @@ def delete_pedido(id):
                 print(f"No se pudo analizar la URL de Cloudinary para public_id: {imagen_url}")
 
         except Exception as e:
-            print(f"Error al eliminar la imagen de Cloudinary: {e}") # Registrar error, pero no detener el proceso
+            print(f"Error al eliminar la imagen de Cloudinary: {e}")
 
-    # Ahora, eliminar el pedido de la base de datos
     conn.execute('DELETE FROM pedidos WHERE id = ?', (id,))
     conn.commit()
     conn.close()
