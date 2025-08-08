@@ -1,0 +1,59 @@
+### **Resumen del Estado Actual del Proyecto: ROBLEKA Gestor de Pedidos**
+
+**1. Objetivo Principal:**
+Estamos en el proceso de preparar tu aplicación Flask para su despliegue en un entorno de producción utilizando **GitHub** para el control de versiones y **Render** como plataforma de alojamiento, con un enfoque en mantener los costos en cero.
+
+**2. Estado del Código de la Aplicación (Backend y Frontend):**
+
+*   **Optimización de Rendimiento (`main.py`):**
+    *   La función `index()` en `main.py` ha sido optimizada. Anteriormente, cargaba todos los pedidos para calcular métricas y datos de gráficos. Ahora, utiliza **consultas SQL agregadas directamente en la base de datos** (SQLite) para obtener `total_facturado`, `monto_pendiente`, `chart_estados_data`, `chart_ingresos_data` y `fechas_unicas`. Esto reduce significativamente la carga de memoria y mejora la eficiencia, especialmente con un gran número de pedidos.
+*   **Mejoras de Seguridad (`main.py`):**
+    *   La `SECRET_KEY` de Flask ahora se carga de forma segura desde una **variable de entorno** (`os.environ.get('SECRET_KEY')`), con un valor de fallback para desarrollo. Esto es crucial para la seguridad en producción.
+    *   Se ha añadido una **nota importante en el código** sobre la necesidad de implementar un sistema de gestión de usuarios más robusto para una aplicación en producción, ya que las credenciales de inicio de sesión (`robleka`/`robleka_pass`) están actualmente hardcodeadas.
+*   **Integración de Almacenamiento de Imágenes (Cloudinary):**
+    *   **Problema Identificado:** El almacenamiento local de imágenes (`static/uploads`) no es viable para despliegues gratuitos en plataformas como Render, ya que el sistema de archivos es efímero (los archivos se perderían con cada reinicio/despliegue).
+    *   **Solución Implementada:** Hemos integrado **Cloudinary** como servicio de almacenamiento de imágenes gratuito.
+        *   El archivo `requirements.txt` ha sido actualizado para incluir la dependencia `cloudinary`.
+        *   `main.py` ha sido modificado para:
+            *   Importar y configurar Cloudinary utilizando **variables de entorno** (`CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`).
+            *   Las funciones `add_pedido` y `update_pedido` ahora suben las imágenes directamente a Cloudinary y guardan la URL segura proporcionada por Cloudinary en la base de datos.
+            *   La función `update_pedido` incluye lógica para **eliminar la imagen antigua de Cloudinary** si se sube una nueva, evitando acumulación de archivos innecesarios.
+            *   La función `delete_pedido` también ha sido actualizada para **eliminar la imagen correspondiente de Cloudinary** cuando se borra un pedido de la base de datos.
+        *   El frontend (`templates/index.html`) ha sido ajustado para mostrar las imágenes directamente desde las URLs de Cloudinary, eliminando la dependencia de la carpeta `static/uploads` para las imágenes de pedidos.
+*   **Documentación de Despliegue:**
+    *   Se ha creado un archivo `DEPLOYMENT.md` en la raíz del proyecto. Este archivo contiene una guía detallada sobre cómo desplegar la aplicación, incluyendo la configuración del entorno, la gestión de variables de entorno, consideraciones sobre la base de datos (SQLite vs. PostgreSQL/MySQL), el uso de servidores WSGI (Gunicorn/Waitress) y servidores web (Nginx/Apache), y otras buenas prácticas para producción.
+
+**3. Estado de Git y GitHub (Punto Crítico Actual):**
+
+*   **Repositorio Local:** Tu directorio `d:\app kari\` ha sido inicializado como un repositorio Git local (`git init`).
+*   **Problema Actual:** Los comandos de Git (`git --version`, `git add .`) no son reconocidos en tu terminal.
+*   **Causa:** Esto indica que Git no está correctamente instalado en tu sistema o no está configurado en la variable de entorno PATH de Windows.
+*   **Impacto:** No podemos continuar con la subida del código a GitHub hasta que este problema se resuelva, ya que los comandos `git add`, `git commit` y `git push` son esenciales.
+
+**4. Credenciales de Cloudinary:**
+
+*   Has confirmado que tienes tu cuenta gratuita de Cloudinary configurada y que has obtenido tus credenciales: `Cloud Name`, `API Key` y `API Secret`.
+*   **Recordatorio Crucial:** Estas claves **NO deben ser añadidas directamente al código** ni subidas a GitHub. Las configuraremos como variables de entorno en Render durante el despliegue.
+
+---
+
+### **Próximos Pasos (Para Mañana):**
+
+1.  **Resolver el Problema de Git:**
+    *   Asegúrate de que Git esté correctamente instalado en tu sistema y que la variable de entorno PATH esté configurada para que la terminal pueda encontrar el ejecutable `git`.
+    *   Una vez que creas que está resuelto, abre una **nueva ventana de terminal** y verifica ejecutando `git --version`. Si muestra la versión de Git, estaremos listos.
+2.  **Operaciones de Git Pendientes:**
+    *   Una vez que Git funcione, ejecutaremos los comandos para añadir todos los archivos modificados al área de preparación: `git add .`
+    *   Luego, realizaremos el commit de estos cambios: `git commit -m "Integrate Cloudinary for image storage and update frontend"`
+    *   **Crear un nuevo repositorio vacío en tu cuenta de GitHub** (si aún no lo has hecho, siguiendo las instrucciones que te di anteriormente, asegurándote de NO inicializarlo con README, .gitignore o licencia).
+    *   Conectaremos tu repositorio local a este nuevo repositorio remoto en GitHub.
+    *   Finalmente, subiremos todos los cambios a GitHub (`git push`).
+3.  **Despliegue en Render:**
+    *   Una vez que el código esté en GitHub, te guiaré paso a paso para crear un nuevo servicio web en Render.
+    *   Conectaremos Render a tu repositorio de GitHub.
+    *   Configuraremos las variables de entorno necesarias en Render (tu `SECRET_KEY` de Flask y las tres claves de Cloudinary).
+    *   Definiremos los comandos de construcción y de inicio para tu aplicación Flask en Render.
+    *   Monitorearemos el proceso de despliegue y depuraremos cualquier problema que surja.
+4.  **Pruebas Post-Despliegue:**
+    *   Verificaremos que la aplicación funcione correctamente en Render, incluyendo la subida, visualización y eliminación de imágenes a través de Cloudinary.
+

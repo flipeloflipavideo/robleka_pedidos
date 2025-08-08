@@ -1,0 +1,510 @@
+/* --- Fondo Dinámico --- */
+.background-slideshow {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    z-index: -2; /* Detrás de todo */
+    overflow: hidden;
+}
+
+.background-slideshow .slide {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    opacity: 0; /* Se establecerá a 1 para la primera imagen */
+    /* animation: slideshow 24s infinite; */ /* Animación desactivada temporalmente */
+}
+
+.background-slideshow .slide:first-child {
+    opacity: 1; /* Hacer la primera imagen visible */
+}
+
+.background-slideshow .slide:nth-child(2) {
+    /* animation-delay: 8s; */
+}
+
+.background-slideshow .slide:nth-child(3) {
+    /* animation-delay: 16s; */
+}
+
+.overlay {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    background-color: rgba(248, 249, 250, 0.2); /* Superposición clara por defecto */
+    z-index: -1; /* Entre el fondo y el contenido */
+    transition: background-color 0.5s ease;
+}
+
+/* @keyframes slideshow {
+    0% { opacity: 0; }
+    10% { opacity: 1; }
+    33.33% { opacity: 1; }
+    43.33% { opacity: 0; }
+    100% { opacity: 0; }
+} */
+
+/* Importar fuente de Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
+
+body {
+    font-family: 'Montserrat', sans-serif;
+    background-color: transparent; /* El color lo da el overlay */
+    color: #212529;
+    line-height: 1.6;
+}
+
+/* --- Animaciones --- */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animated {
+    animation-duration: 0.8s;
+    animation-fill-mode: both;
+    animation-timing-function: ease-in-out;
+}
+
+.fadeInUp {
+    animation-name: fadeInUp;
+}
+
+/* Aplicar animación a elementos específicos */
+.metric-card, .table-responsive, #calendario-container, #charts-container {
+    opacity: 0; /* Ocultar inicialmente */
+}
+
+
+/* --- Barra de Navegación y Título --- */
+.navbar {
+    background-color: rgba(255, 255, 255, 0.8) !important; /* Fondo semitransparente */
+    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    padding: 1rem 0;
+}
+
+.main-logo {
+    height: 80px;
+    margin-bottom: 10px;
+}
+
+.main-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #343a40;
+}
+
+.table-title {
+    font-weight: 700;
+    color: #495057;
+}
+
+/* --- Tabla de Pedidos --- */
+.table-responsive {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+    border-radius: 12px;
+    padding: 1.5rem;
+    background-color: rgba(255, 255, 255, 0.8); /* Fondo semitransparente */
+    backdrop-filter: blur(10px);
+}
+
+.table {
+    font-size: 1.1rem;
+    border-collapse: separate;
+    border-spacing: 0 10px;
+}
+
+.table thead th {
+    border: none;
+    color: #6c757d;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.table tbody tr {
+    transition: all 0.2s ease-in-out;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+    opacity: 0; /* Ocultar inicialmente para animación escalonada */
+}
+
+.table tbody tr:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+    cursor: pointer;
+}
+
+.table td, .table th {
+    vertical-align: middle; /* Centrar contenido verticalmente */
+    padding: 1.25rem;
+}
+
+/* --- Estilos de Estado --- */
+.estado-cell {
+    padding: 0.5rem;
+    border-radius: 30px; /* Forma de píldora */
+    text-align: center;
+    font-weight: 600;
+    color: #fff;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+}
+
+.estado-pendiente {
+    background-color: #ffc107; /* Amarillo */
+}
+
+.estado-en-progreso {
+    background-color: #17a2b8; /* Azul */
+}
+
+.estado-completado {
+    background-color: #28a745; /* Verde */
+}
+
+/* Colores de las filas según el estado */
+table tbody tr.fila-pendiente {
+    background-color: rgba(255, 193, 7, 0.5);
+}
+
+table tbody tr.fila-en-progreso {
+    background-color: rgba(23, 162, 184, 0.5);
+}
+
+table tbody tr.fila-completado {
+    background-color: rgba(40, 167, 69, 0.5);
+}
+
+table.table-hover tbody tr.fila-pendiente:hover {
+    background-color: rgba(255, 193, 7, 0.7);
+}
+
+table.table-hover tbody tr.fila-en-progreso:hover {
+    background-color: rgba(23, 162, 184, 0.7);
+}
+
+table.table-hover tbody tr.fila-completado:hover {
+    background-color: rgba(40, 167, 69, 0.7);
+}
+
+
+.table td img {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+/* --- Botones --- */
+.btn {
+    border-radius: 8px;
+    font-weight: 600;
+    padding: 12px 24px;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+    transform: translateY(-2px);
+}
+
+/* --- Métricas --- */
+.metric-card {
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.metric-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+}
+
+.metric-card h5 {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    opacity: 0.9;
+}
+
+.metric-card h2 {
+    font-weight: 700;
+    font-size: 2.5rem;
+}
+
+
+/* --- Calendario --- */
+#calendario-container {
+    background-color: rgba(255, 255, 255, 0.8); /* Fondo semitransparente */
+    backdrop-filter: blur(10px);
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+}
+
+.fc-day-today {
+    background-color: #eaf6ff !important;
+}
+
+.fc-daygrid-day.event-day {
+    background-color: #d1ecf1;
+    cursor: pointer;
+}
+
+.fc-daygrid-day.event-day:hover {
+    background-color: #bce8f1;
+}
+
+/* --- Búsqueda y Ordenación --- */
+#searchInput {
+    max-width: 350px;
+    padding: 10px 15px;
+}
+
+.table thead th[data-sort] {
+    cursor: pointer;
+    position: relative;
+}
+
+.table thead th[data-sort]::after {
+    content: '\2195';
+    font-size: 0.9em;
+    opacity: 0.4;
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    transition: opacity 0.2s ease-in-out;
+}
+
+.table thead th.sorted-asc::after {
+    content: '\2191';
+    opacity: 1;
+}
+
+.table thead th.sorted-desc::after {
+    content: '\2193';
+    opacity: 1;
+}
+
+/* --- Modales --- */
+.modal-content {
+    border-radius: 15px;
+    border: none;
+}
+
+.modal-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    border-top-left-radius: 15px;
+    border-top-right-radius: 15px;
+}
+
+/* --- Dark Mode --- */
+body.dark-mode {
+    color: #e0e0e0;
+}
+
+body.dark-mode .overlay {
+    background-color: rgba(0, 0, 0, 0.5); /* Superposición oscura más pronunciada */
+}
+
+body.dark-mode .navbar {
+    background-color: rgba(30, 30, 30, 0.9) !important; /* Fondo más oscuro y menos transparente */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+body.dark-mode .main-title, body.dark-mode .table-title {
+    color: #ffffff;
+}
+
+body.dark-mode .metric-card {
+    background-color: #343a40 !important; /* Fondo oscuro para las tarjetas de métricas */
+    box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+}
+
+body.dark-mode .table-responsive, body.dark-mode #calendario-container, body.dark-mode #charts-container, body.dark-mode .chart-card {
+    background-color: rgba(45, 45, 45, 0.9) !important; /* Fondo oscuro para tabla, calendario y gráficos */
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+body.dark-mode .table tbody tr {
+    color: #f8f9fa; /* Texto blanco para el modo oscuro */
+    background-color: #282828;
+}
+
+body.dark-mode .table thead th {
+    color: #a0a0a0;
+}
+
+body.dark-mode .table-hover tbody tr:hover {
+    background-color: #3a3a3a;
+}
+
+body.dark-mode .modal-content {
+    background-color: #1e1e1e;
+}
+
+body.dark-mode .modal-header {
+    background-color: #282828;
+    border-bottom-color: #333;
+}
+
+body.dark-mode .form-control, body.dark-mode .form-select {
+    background-color: #333;
+    color: #e0e0e0;
+    border-color: #555;
+}
+
+body.dark-mode .form-control:focus, body.dark-mode .form-select:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.25rem rgba(0, 123, 255, 0.25);
+}
+
+/* Estilos de filas de tabla en modo oscuro */
+body.dark-mode table tbody tr.fila-pendiente {
+    background-color: rgba(255, 193, 7, 0.2); /* Amarillo más oscuro para modo noche */
+}
+
+body.dark-mode table tbody tr.fila-en-progreso {
+    background-color: rgba(23, 162, 184, 0.2); /* Azul más oscuro para modo noche */
+}
+
+body.dark-mode table tbody tr.fila-completado {
+    background-color: rgba(40, 167, 69, 0.2); /* Verde más oscuro para modo noche */
+}
+
+body.dark-mode table.table-hover tbody tr.fila-pendiente:hover {
+    background-color: rgba(255, 193, 7, 0.3);
+}
+
+body.dark-mode table.table-hover tbody tr.fila-en-progreso:hover {
+    background-color: rgba(23, 162, 184, 0.3);
+}
+
+body.dark-mode table.table-hover tbody tr.fila-completado:hover {
+    background-color: rgba(40, 167, 69, 0.3);
+}
+
+/* Asegurar que las celdas dentro de las filas coloreadas sean transparentes */
+table tbody tr.fila-pendiente > td,
+table tbody tr.fila-en-progreso > td,
+table tbody tr.fila-completado > td {
+    background-color: transparent;
+    box-shadow: none;
+}
+
+/* --- Media Queries para Responsividad --- */
+
+/* Para tablets y pantallas más pequeñas (menor a 992px) */
+@media (max-width: 991.98px) {
+    .row > * {
+        margin-bottom: 1.5rem; /* Añadir espacio entre las columnas cuando se apilan */
+    }
+
+    #calendario-container {
+        margin-bottom: 2rem;
+    }
+}
+
+/* Para móviles (menor a 768px) */
+@media (max-width: 767.98px) {
+    .main-logo {
+        height: 60px; /* Reducir logo */
+    }
+
+    .main-title {
+        font-size: 1.8rem; /* Reducir título principal */
+    }
+
+    .table-title {
+        font-size: 1.5rem;
+    }
+
+    .d-flex.justify-content-between.align-items-center {
+        flex-direction: column;
+        align-items: stretch !important;
+    }
+
+    #searchInput {
+        margin-bottom: 1rem;
+        width: 100%;
+    }
+
+    .btn-lg {
+        width: 100%;
+    }
+
+    .table {
+        font-size: 0.9rem;
+    }
+
+    .table td, .table th {
+        padding: 0.75rem;
+    }
+
+    .metric-card h2 {
+        font-size: 2rem;
+    }
+}
+
+/* Para pantallas muy pequeñas (menor a 576px) */
+@media (max-width: 575.98px) {
+    .table-responsive {
+        padding: 1rem;
+    }
+
+    .table td, .table th {
+        /* Forzar que las celdas se muestren como bloques */
+        display: block;
+        width: 100%;
+        text-align: right; /* Alinear texto a la derecha */
+        padding-left: 50%; /* Espacio para la etiqueta */
+        position: relative;
+    }
+
+    .table td::before {
+        /* Añadir la etiqueta de la columna como pseudo-elemento */
+        content: attr(data-label);
+        position: absolute;
+        left: 10px;
+        width: calc(50% - 20px);
+        padding-right: 10px;
+        white-space: nowrap;
+        text-align: left;
+        font-weight: bold;
+    }
+
+    .table thead {
+        display: none; /* Ocultar la cabecera original */
+    }
+
+    .table tbody tr {
+        margin-bottom: 1rem;
+        display: block;
+        border: 1px solid #ddd;
+    }
+
+    .table td:last-child {
+        border-bottom: 0;
+    }
+}
