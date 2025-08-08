@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, flash, make_response
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 import os
 from werkzeug.utils import secure_filename
 from collections import Counter
@@ -19,31 +20,28 @@ app = Flask(__name__)
 
 # --- Configuración de Cloudinary ---
 cloudinary.config(
-    cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
-    api_key=os.environ.get('CLOUDINARY_API_KEY'),
-    api_secret=os.environ.get('CLOUDINARY_API_SECRET'),
+    cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME'),
+    api_key = os.environ.get('CLOUDINARY_API_KEY'),
+    api_secret = os.environ.get('CLOUDINARY_API_SECRET'),
     secure=True
 )
 
 app.secret_key = os.environ.get('SECRET_KEY', 'a_very_secret_dev_key')
 
-# --- Ajuste de URL para PostgreSQL ---
-database_url = os.environ.get('DATABASE_URL')
-if database_url and database_url.startswith('postgres://'):
-    database_url = database_url.replace('postgres://', 'postgresql://', 1)
-
-# --- Configuración de SQLAlchemy ---
-app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+# --- Configuración de SQLAlchemy para PostgreSQL ---
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 
-# --- CREACIÓN DE TABLAS ---
-with app.app_context():
-    db.create_all()
+# --- CREACIÓN DE TABLAS: Asegurarse de que se ejecuta al inicio ---
+# Esta parte se ejecutará cuando Gunicorn cargue la aplicación
+# with app.app_context():
+#     db.create_all()
 
 PEDIDOS_POR_PAGINA = 10
 
-# --- Modelo ---
+# --- Definición del Modelo de Pedido con SQLAlchemy ---
 class Pedido(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre_cliente = db.Column(db.String(100), nullable=False)
@@ -62,7 +60,7 @@ class Pedido(db.Model):
     def __repr__(self):
         return f'<Pedido {self.id} - {self.nombre_cliente}>'
 
-# --- Flask-Login ---
+# --- Configuración de Flask-Login ---
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
@@ -70,6 +68,7 @@ login_manager.login_view = 'login'
 class User(UserMixin):
     def __init__(self, id):
         self.id = id
+
     def get_id(self):
         return str(self.id)
 
@@ -79,11 +78,14 @@ def load_user(user_id):
         return User('robleka')
     return None
 
-# --- Funciones auxiliares ---
+# --- Funciones de la aplicación ---
 def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}
 
-# --- Rutas ---
+# No necesitamos get_db_connection() ni init_db() con SQLAlchemy
+
+# --- Rutas de la aplicación ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -114,10 +116,14 @@ def export_csv():
     pedidos = Pedido.query.order_by(Pedido.fecha_creacion.desc()).all()
     output = io.StringIO()
     writer = csv.writer(output)
+    
+    # Obtener los nombres de las columnas del modelo Pedido
     header = [column.name for column in Pedido.__table__.columns]
     writer.writerow(header)
+    
     for pedido in pedidos:
         writer.writerow([getattr(pedido, col) for col in header])
+    
     output.seek(0)
     response = make_response(output.getvalue())
     response.headers["Content-Disposition"] = "attachment; filename=pedidos.csv"
@@ -129,8 +135,9 @@ def export_csv():
 def index():
     page = request.args.get('page', 1, type=int)
     search_term = request.args.get('search', '')
-
+    
     query = Pedido.query
+
     if search_term:
         query = query.filter(
             (Pedido.nombre_cliente.ilike(f'%{search_term}%')) |
@@ -140,10 +147,10 @@ def index():
 
     total_pedidos = query.count()
     total_paginas = math.ceil(total_pedidos / PEDIDOS_POR_PAGINA)
-
+    
     pedidos = query.order_by(Pedido.fecha_creacion.desc())
     pedidos = pedidos.paginate(page=page, per_page=PEDIDOS_POR_PAGINA, error_out=False).items
-
+    
     total_facturado_result = db.session.query(
         db.func.sum(db.case(
             (Pedido.estado_pago == 'Pagado Completo', Pedido.precio),
@@ -167,6 +174,7 @@ def index():
         'data': [row[1] for row in estados_result]
     }
 
+    # CORRECCIÓN: Usar TO_CHAR para PostgreSQL y la expresión completa en group_by y order_by
     ingresos_mensuales_expr = db.func.to_char(Pedido.fecha_creacion, 'YYYY-MM')
     ingresos_mensuales_result = db.session.query(
         ingresos_mensuales_expr,
@@ -177,28 +185,181 @@ def index():
         'data': [row[1] for row in ingresos_mensuales_result]
     }
 
-    # FIX: evitar order_by(1), usar la expresión directamente
+    # CORRECCIÓN: Usar TO_CHAR para PostgreSQL y la expresión completa en order_by
     fechas_unicas_expr = db.func.to_char(Pedido.fecha_creacion, 'YYYY-MM-DD')
     fechas_unicas_result = db.session.query(
         fechas_unicas_expr
     ).distinct().order_by(fechas_unicas_expr).all()
     fechas_unicas = [row[0] for row in fechas_unicas_result]
 
-    return render_template(
-        'index.html',
-        pedidos=pedidos,
-        fechas_pedidos_json=json.dumps(fechas_unicas),
-        total_facturado=total_facturado,
-        monto_pendiente=monto_pendiente,
-        chart_estados_data=json.dumps(chart_estados_data),
-        chart_ingresos_data=json.dumps(chart_ingresos_data),
-        page=page,
-        total_paginas=total_paginas,
-        search_term=search_term
-    )
+    return render_template('index.html', 
+                           pedidos=pedidos, 
+                           fechas_pedidos_json=json.dumps(fechas_unicas),
+                           total_facturado=total_facturado,
+                           monto_pendiente=monto_pendiente,
+                           chart_estados_data=json.dumps(chart_estados_data),
+                           chart_ingresos_data=json.dumps(chart_ingresos_data),
+                           page=page,
+                           total_paginas=total_paginas,
+                           search_term=search_term)
 
-# --- Rutas de añadir, actualizar y borrar pedidos ---
-# (el resto del código que ya tienes para add_pedido, update_pedido y delete_pedido se mantiene igual)
+@app.route('/add_pedido', methods=['POST'])
+@login_required
+def add_pedido():
+    if request.method == 'POST':
+        nombre_cliente = request.form['nombre_cliente']
+        forma_contacto = request.form['forma_contacto']
+        contacto_detalle = request.form['contacto_detalle']
+        direccion_entrega = request.form['direccion_entrega']
+        producto = request.form['producto']
+        detalles = request.form['detalles']
+        precio = float(request.form['precio'])
+        anticipo = float(request.form.get('anticipo', '0.0'))
+        
+        errors = []
+        if not nombre_cliente: errors.append('El nombre del cliente es obligatorio.')
+        if not forma_contacto: errors.append('La forma de contacto es obligatoria.')
+        if not producto: errors.append('El producto es obligatorio.')
+
+        if precio <= 0: errors.append('El precio debe ser un número positivo.')
+        if anticipo < 0: errors.append('El anticipo no puede ser negativo.')
+        if anticipo > precio: errors.append('El anticipo no puede ser mayor que el precio total.')
+
+        if errors:
+            for error in errors: flash(error, 'danger')
+            return redirect(url_for('index'))
+
+        if anticipo == precio:
+            estado_pago = 'Pagado Completo'
+        elif anticipo > 0:
+            estado_pago = 'Anticipo Pagado'
+        else:
+            estado_pago = 'Pendiente'
+        
+        estado_pedido = 'Pendiente'
+        imagen_path = None
+
+        if 'imagen' in request.files:
+            file = request.files['imagen']
+            if file.filename != '' and allowed_file(file.filename):
+                try:
+                    upload_result = cloudinary.uploader.upload(file)
+                    imagen_path = upload_result['secure_url']
+                except Exception as e:
+                    flash(f'Error al subir la imagen a Cloudinary: {e}', 'danger')
+                    imagen_path = None
+
+        nuevo_pedido = Pedido(
+            nombre_cliente=nombre_cliente,
+            forma_contacto=forma_contacto,
+            contacto_detalle=contacto_detalle,
+            direccion_entrega=direccion_entrega,
+            producto=producto,
+            detalles=detalles,
+            precio=precio,
+            anticipo=anticipo,
+            imagen_path=imagen_path,
+            estado_pago=estado_pago,
+            estado_pedido=estado_pedido
+        )
+        db.session.add(nuevo_pedido)
+        db.session.commit()
+        flash('¡Pedido añadido con éxito!', 'success')
+        return redirect(url_for('index'))
+
+@app.route('/update_pedido/<int:id>', methods=['POST'])
+@login_required
+def update_pedido(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    nombre_cliente = request.form['nombre_cliente']
+    forma_contacto = request.form['forma_contacto']
+    contacto_detalle = request.form['contacto_detalle']
+    direccion_entrega = request.form['direccion_entrega']
+    producto = request.form['producto']
+    detalles = request.form['detalles']
+    precio = float(request.form['precio'])
+    anticipo = float(request.form.get('anticipo', '0.0'))
+    estado_pedido = request.form['estado_pedido']
+
+    errors = []
+    if not nombre_cliente: errors.append('El nombre del cliente es obligatorio.')
+    if not forma_contacto: errors.append('La forma de contacto es obligatoria.')
+    if not producto: errors.append('El producto es obligatorio.')
+    if precio <= 0: errors.append('El precio debe ser un número positivo.')
+    if anticipo < 0: errors.append('El anticipo no puede ser negativo.')
+    if anticipo > precio: errors.append('El anticipo no puede ser mayor que el precio total.')
+
+    if errors:
+        for error in errors: flash(error, 'danger')
+        return redirect(url_for('index'))
+
+    if estado_pedido == 'Completado':
+        anticipo = precio
+        estado_pago = 'Pagado Completo'
+    else:
+        if anticipo == precio:
+            estado_pago = 'Pagado Completo'
+        elif anticipo > 0:
+            estado_pago = 'Anticipo Pagado'
+        else:
+            estado_pago = 'Pendiente'
+
+    # Lógica de la imagen
+    imagen_path = pedido.imagen_path # Mantener la imagen existente por defecto
+    if 'imagen' in request.files and request.files['imagen'].filename != '':
+        file = request.files['imagen']
+        if allowed_file(file.filename):
+            try:
+                # Borrar imagen antigua de Cloudinary si existe
+                if imagen_path and imagen_path.startswith('http'):
+                    public_id = imagen_path.split('/')[-1].rsplit('.', 1)[0]
+                    cloudinary.uploader.destroy(public_id)
+                
+                # Subir nueva imagen a Cloudinary
+                upload_result = cloudinary.uploader.upload(file)
+                imagen_path = upload_result['secure_url']
+                flash('Imagen actualizada en Cloudinary.', 'success')
+            except Exception as e:
+                print(f"ERROR CLOUDINARY: {e}")
+                flash(f'Error al subir a Cloudinary: {e}', 'danger')
+        else:
+            flash('Formato de archivo no permitido.', 'warning')
+
+    # Actualizar el objeto pedido con los nuevos datos
+    pedido.nombre_cliente = nombre_cliente
+    pedido.forma_contacto = forma_contacto
+    pedido.contacto_detalle = contacto_detalle
+    pedido.direccion_entrega = direccion_entrega
+    pedido.producto = producto
+    pedido.detalles = detalles
+    pedido.precio = precio
+    pedido.anticipo = anticipo
+    pedido.imagen_path = imagen_path
+    pedido.estado_pago = estado_pago
+    pedido.estado_pedido = estado_pedido
+
+    db.session.commit()
+    flash('¡Pedido actualizado correctamente!', 'success')
+    return redirect(url_for('index'))
+
+@app.route('/delete_pedido/<int:id>', methods=['POST'])
+@login_required
+def delete_pedido(id):
+    pedido = Pedido.query.get_or_404(id)
+    
+    # Borrar imagen de Cloudinary si existe
+    if pedido.imagen_path and pedido.imagen_path.startswith('http'):
+        try:
+            public_id = pedido.imagen_path.split('/')[-1].rsplit('.', 1)[0]
+            cloudinary.uploader.destroy(public_id)
+        except Exception as e:
+            print(f"Error deleting image from Cloudinary: {e}")
+
+    db.session.delete(pedido)
+    db.session.commit()
+    flash('Pedido eliminado.', 'danger')
+    return redirect(url_for('index'))
 
 if __name__ == '__main__':
     app.run(debug=True)
