@@ -16,7 +16,7 @@ import cloudinary.api
 
 app = Flask(__name__)
 
-# --- Configuración ROBUSTA de Cloudinary ---
+# --- Configuración de Cloudinary ---
 cloudinary.config(
     cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME'),
     api_key = os.environ.get('CLOUDINARY_API_KEY'),
@@ -37,7 +37,7 @@ class User(UserMixin):
     def __init__(self, id):
         self.id = id
 
-    def get_id():
+    def get_id(self):
         return str(self.id)
 
 @login_manager.user_loader
@@ -78,8 +78,6 @@ def init_db():
     conn.commit()
     conn.close()
 
-init_db()
-
 # --- Rutas de la aplicación ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -104,6 +102,24 @@ def logout():
     logout_user()
     flash('Has cerrado sesión.', 'info')
     return redirect(url_for('login'))
+
+@app.route('/export/csv')
+@login_required
+def export_csv():
+    conn = get_db_connection()
+    pedidos = conn.execute('SELECT * FROM pedidos ORDER BY fecha_creacion DESC').fetchall()
+    conn.close()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    header = pedidos[0].keys() if pedidos else []
+    writer.writerow(header)
+    for pedido in pedidos:
+        writer.writerow([pedido[key] for key in header])
+    output.seek(0)
+    response = make_response(output.getvalue())
+    response.headers["Content-Disposition"] = "attachment; filename=pedidos.csv"
+    response.headers["Content-type"] = "text/csv"
+    return response
 
 @app.route('/')
 @login_required
@@ -150,15 +166,26 @@ def index():
 @app.route('/add_pedido', methods=['POST'])
 @login_required
 def add_pedido():
-    # ... (código de añadir sin cambios)
+    # ... (código de añadir)
     pass
 
 @app.route('/update_pedido/<int:id>', methods=['POST'])
 @login_required
 def update_pedido(id):
     conn = get_db_connection()
-    # ... (código de validación y lógica de negocio sin cambios)
-    
+    nombre_cliente = request.form['nombre_cliente']
+    forma_contacto = request.form['forma_contacto']
+    contacto_detalle = request.form['contacto_detalle']
+    direccion_entrega = request.form['direccion_entrega']
+    producto = request.form['producto']
+    detalles = request.form['detalles']
+    precio = float(request.form['precio'])
+    anticipo = float(request.form.get('anticipo', '0.0'))
+    estado_pedido = request.form['estado_pedido']
+    if anticipo == precio: estado_pago = 'Pagado Completo'
+    elif anticipo > 0: estado_pago = 'Anticipo Pagado'
+    else: estado_pago = 'Pendiente'
+
     pedido_actual = conn.execute('SELECT imagen_path FROM pedidos WHERE id = ?', (id,)).fetchone()
     imagen_path = pedido_actual['imagen_path'] if pedido_actual else None
     
@@ -177,20 +204,6 @@ def update_pedido(id):
                 print(f"ERROR CLOUDINARY: {e}")
                 flash(f'Error al subir a Cloudinary: {e}', 'danger')
     
-    # --- CORRECCIÓN CRÍTICA: Pasar todos los parámetros a execute() ---
-    nombre_cliente = request.form['nombre_cliente']
-    forma_contacto = request.form['forma_contacto']
-    contacto_detalle = request.form['contacto_detalle']
-    direccion_entrega = request.form['direccion_entrega']
-    producto = request.form['producto']
-    detalles = request.form['detalles']
-    precio = float(request.form['precio'])
-    anticipo = float(request.form.get('anticipo', '0.0'))
-    estado_pedido = request.form['estado_pedido']
-    if anticipo == precio: estado_pago = 'Pagado Completo'
-    elif anticipo > 0: estado_pago = 'Anticipo Pagado'
-    else: estado_pago = 'Pendiente'
-
     conn.execute('''UPDATE pedidos SET 
                      nombre_cliente = ?, forma_contacto = ?, contacto_detalle = ?, direccion_entrega = ?, 
                      producto = ?, detalles = ?, precio = ?, anticipo = ?, imagen_path = ?, 
@@ -206,8 +219,20 @@ def update_pedido(id):
 @app.route('/delete_pedido/<int:id>', methods=['POST'])
 @login_required
 def delete_pedido(id):
-    # ... (código de eliminar sin cambios)
-    pass
+    conn = get_db_connection()
+    pedido = conn.execute('SELECT imagen_path FROM pedidos WHERE id = ?', (id,)).fetchone()
+    if pedido and pedido['imagen_path'] and pedido['imagen_path'].startswith('http'):
+        imagen_url = pedido['imagen_path']
+        try:
+            public_id = imagen_url.split('/')[-1].rsplit('.', 1)[0]
+            cloudinary.uploader.destroy(public_id)
+        except Exception as e:
+            print(f"Error deleting image from Cloudinary: {e}")
+    conn.execute('DELETE FROM pedidos WHERE id = ?', (id,))
+    conn.commit()
+    conn.close()
+    flash('Pedido eliminado.', 'danger')
+    return redirect(url_for('index'))
 
 if __name__ == '__main__':
     init_db()
